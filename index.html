@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12372a">
+<title>QR-Schnitzeljagd</title>
+<style>
+:root{--green:#17834b;--dark:#12372a;--bg:#f2f6f3;--card:#fff;--text:#17231c;--muted:#5d6b62;--line:#dce7df;--red:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:var(--dark);color:white;padding:18px 16px;padding-top:calc(18px + env(safe-area-inset-top));position:sticky;top:0;z-index:5}
+.head{max-width:850px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px}h1{font-size:21px;margin:0}header p{margin:3px 0 0;color:#d3e5d9;font-size:13px}
+main{max-width:850px;margin:20px auto;padding:0 14px 40px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 3px 14px #12372a0b}
+h2{font-size:19px;margin:0 0 10px}h3{font-size:16px;margin:0 0 8px}p{margin:7px 0}.muted{color:var(--muted);font-size:14px}.hidden{display:none!important}
+button,.button{border:0;border-radius:11px;padding:12px 15px;background:var(--green);color:white;font-size:15px;font-weight:650;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;min-height:44px}
+button.secondary{background:#e8f2eb;color:var(--dark)}button.danger{background:#fff0ef;color:var(--red)}button:disabled{opacity:.5}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.actions button{flex:1}
+label{display:block;font-size:14px;font-weight:650;margin:12px 0 5px}input,textarea,select{width:100%;font:inherit;padding:11px 12px;border:1px solid #bdccc1;border-radius:10px;background:#fff;color:var(--text)}textarea{min-height:86px;resize:vertical}
+.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{flex:1}.tabs button.active{background:var(--dark);color:white}
+.progress{height:8px;border-radius:99px;background:#e4ece6;overflow:hidden;margin:12px 0}.progress span{display:block;height:100%;background:#20a35c;width:0}
+.station-number{font-size:13px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.06em}
+.clue{font-size:18px;white-space:pre-wrap;margin:12px 0}.feedback{padding:12px;border-radius:10px;margin-top:10px}.ok{background:#e5f7eb;color:#155b32}.err{background:#fff0ef;color:#8c2018}
+.qrgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.qritem{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;overflow-wrap:anywhere}.qritem canvas,.qritem img{max-width:100%;height:auto}.qrtitle{font-weight:700}.small{font-size:12px}.stationrow{padding:12px 0;border-bottom:1px solid var(--line)}.stationrow:last-child{border:0}
+#reader{width:100%;overflow:hidden;border-radius:12px}#reader video{border-radius:12px}.notice{background:#fff8df;border:1px solid #f0dfa0;padding:12px;border-radius:10px;font-size:14px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:12px}
+@media(min-width:650px){main{padding-left:20px;padding-right:20px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.two .card{margin-bottom:0}}
+</style>
+</head>
+<body>
+<header><div class="head"><div><h1>🧭 QR-Schnitzeljagd</h1><p>Hinweise scannen · Rätsel lösen · Ziel finden</p></div><button class="secondary" id="homeBtn" type="button">Start</button></div></header>
+<main>
+<div class="tabs">
+ <button id="playTab" class="active" type="button">Teilnehmen</button>
+ <button id="adminTab" class="secondary" type="button">Organisieren</button>
+</div>
+<section id="playView">
+ <div id="welcome" class="card">
+  <h2>Bereit für die Schnitzeljagd?</h2>
+  <p>Scanne den QR-Code an einer Station. Du bekommst den Hinweis oder die Aufgabe für diesen Ort.</p>
+  <div class="notice">📌 Wichtig: Die Organisatorin oder der Organisator muss diese HTML-Datei zuerst auf einer HTTPS-Webseite veröffentlichen. Die Kamera funktioniert am iPhone in Safari normalerweise nur über HTTPS.</div>
+  <div class="actions"><button id="scanBtn" type="button">📷 QR-Code scannen</button><button class="secondary" id="manualBtn" type="button">Stationslink öffnen</button></div>
+  <div id="scannerWrap" class="hidden" style="margin-top:14px"><div id="reader"></div><p class="muted">Erlaube Safari den Kamerazugriff. Alternativ kannst du einfach die Kamera-App des iPhones verwenden und den QR-Code antippen.</p><button id="stopScan" class="secondary" type="button">Scanner schließen</button></div>
+  <div id="manualWrap" class="hidden"><label for="manualUrl">Stationslink einfügen</label><input id="manualUrl" type="url" placeholder="https://…/#station=…"><button id="openManual" type="button" style="margin-top:8px">Station öffnen</button></div>
+ </div>
+ <div id="stationView" class="card hidden">
+  <div class="station-number" id="stationLabel">Station</div><h2 id="stationTitle">Hinweis</h2>
+  <div class="progress"><span id="progressBar"></span></div><p class="muted" id="progressText"></p>
+  <div class="clue" id="stationClue"></div>
+  <div id="answerArea" class="hidden"><label for="answerInput">Deine Lösung</label><input id="answerInput" autocomplete="off" placeholder="Antwort eingeben"><button id="checkAnswer" type="button" style="width:100%;margin-top:9px">Lösung prüfen</button><div id="answerFeedback" class="hidden"></div></div>
+  <div id="nextArea" class="hidden"><div class="feedback ok">✅ Geschafft! Du kannst zur nächsten Station.</div><p id="nextText"></p><div class="actions"><button id="nextBtn" type="button">Weiter</button><button id="backBtn" class="secondary" type="button">Zur Übersicht</button></div></div>
+ </div>
+ <div class="card"><h3>So funktioniert es</h3><p class="muted">1. QR-Code an der Station mit der iPhone-Kamera scannen. 2. Hinweis lesen und Aufgabe lösen. 3. Dem Hinweis zur nächsten Station folgen.</p></div>
+</section>
+<section id="adminView" class="hidden">
+ <div class="card">
+  <h2>Stationen erstellen</h2>
+  <p class="muted">Erstelle Hinweise und optional Rätsel. Jeder QR-Code enthält die jeweilige Station direkt im Link, damit er auch auf einem anderen iPhone funktioniert.</p>
+  <div class="notice">Vor dem Erstellen: Lade diese HTML-Datei auf einen Webhost mit HTTPS hoch. Die QR-Codes verlinken auf genau diese Webadresse. Wenn du die Datei später verschiebst oder umbenennst, musst du die QR-Codes neu erstellen.</div>
+  <label for="baseUrl">Öffentliche URL dieser HTML-Datei</label><input id="baseUrl" type="url" placeholder="https://deine-seite.at/schnitzeljagd.html">
+  <label for="titleInput">Stationsname</label><input id="titleInput" placeholder="z. B. Station 1 – Der alte Baum">
+  <label for="clueInput">Hinweis / Aufgabe</label><textarea id="clueInput" placeholder="z. B. Gehe 100 Meter nach Norden und suche beim großen Baum."></textarea>
+  <label for="answerInputAdmin">Lösung (optional)</label><input id="answerInputAdmin" placeholder="Leer lassen, wenn keine Lösung nötig ist">
+  <label for="successInput">Text nach richtiger Lösung (optional)</label><textarea id="successInput" placeholder="z. B. Gehe zum Brunnen hinter dem Haus."></textarea>
+  <div class="actions"><button id="addStation" type="button">＋ Station hinzufügen</button><button id="demoBtn" class="secondary" type="button">Beispielstationen laden</button></div>
+  <p id="adminMsg" class="muted"></p>
+ </div>
+ <div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2>Deine Stationen</h2><button id="clearStations" class="danger" type="button">Alle löschen</button></div>
+  <div id="stationList"><p class="muted">Noch keine Stationen erstellt.</p></div>
+ </div>
+ <div class="card">
+  <h2>QR-Codes zum Drucken</h2>
+  <p class="muted">QR-Codes werden mit einer externen QR-Bibliothek erzeugt. Für das Erstellen und Anzeigen der Codes ist Internet nötig.</p>
+  <div id="qrGrid" class="qrgrid"></div>
+  <div class="actions"><button id="printBtn" class="secondary" type="button">🖨️ QR-Codes drucken</button><button id="exportBtn" class="secondary" type="button">Stationen exportieren</button><button id="importBtn" class="secondary" type="button">Importieren</button></div>
+  <input id="importFile" type="file" accept="application/json,.json" class="hidden">
+ </div>
+</section>
+<footer>Die Stationen im Admin-Bereich werden auf diesem Gerät im Browser gespeichert. Exportiere sie zur Sicherung.</footer>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+(()=> {
+const $=id=>document.getElementById(id);
+const STORE='qr-schnitzeljagd-stations-v1';
+let stations=[],scanner=null,currentStation=null,unlocked=new Set();
+try{stations=JSON.parse(localStorage.getItem(STORE)||'[]')}catch(e){stations=[]}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(stations))}catch(e){$('adminMsg').textContent='Speichern im Browser nicht möglich. Bitte exportiere die Stationen.'}}
+function enc(obj){const bytes=new TextEncoder().encode(JSON.stringify(obj));let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function dec(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s);const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(bytes))}
+function base(){let v=$('baseUrl').value.trim();if(v)return v.split('#')[0];if(location.protocol==='http:'||location.protocol==='https:')return location.href.split('#')[0];return ''}
+function stationUrl(s){const b=base();return b+'#station='+enc(s)}
+function switchTab(which){const admin=which==='admin';$('adminView').classList.toggle('hidden',!admin);$('playView').classList.toggle('hidden',admin);$('adminTab').classList.toggle('active',admin);$('playTab').classList.toggle('active',!admin);$('adminTab').classList.toggle('secondary',admin?false:true);$('playTab').classList.toggle('secondary',admin?true:false);if(admin)renderAdmin()}
+$('adminTab').onclick=()=>switchTab('admin');$('playTab').onclick=()=>switchTab('play');$('homeBtn').onclick=()=>{location.hash='';showWelcome();switchTab('play')};
+function safeText(id,t){$(id).textContent=t||''}
+function showWelcome(){$('welcome').classList.remove('hidden');$('stationView').classList.add('hidden')}
+function showStation(s){currentStation=s;$('welcome').classList.add('hidden');$('stationView').classList.remove('hidden');safeText('stationLabel','Station '+(s.n||''));safeText('stationTitle',s.title||'Hinweis');safeText('stationClue',s.clue||'');const n=Number(s.n)||1,total=Number(s.total)||Math.max(n,stations.length,1);$('progressBar').style.width=Math.min(100,n/total*100)+'%';safeText('progressText','Station '+n+(total?' von '+total:''));$('answerArea').classList.toggle('hidden',!s.answer);$('nextArea').classList.toggle('hidden',!!s.answer&&!unlocked.has(s.id));$('answerInput').value='';$('answerFeedback').classList.add('hidden');safeText('nextText',s.success||'Suche den nächsten QR-Code.');if(!s.answer||unlocked.has(s.id))$('nextArea').classList.remove('hidden')}
+function loadHash(){const m=location.hash.match(/(?:^#|&)station=([^&]+)/);if(!m){showWelcome();return}try{const s=dec(decodeURIComponent(m[1]));if(!s.id||!s.title)throw 0;showStation(s)}catch(e){showWelcome();alert('Dieser Stationslink ist ungültig. Bitte scanne den QR-Code erneut.')}}
+$('checkAnswer').onclick=()=>{if(!currentStation)return;const got=$('answerInput').value.trim().toLocaleLowerCase('de');const want=String(currentStation.answer||'').trim().toLocaleLowerCase('de');const f=$('answerFeedback');f.className='feedback';f.classList.remove('hidden');if(got===want){unlocked.add(currentStation.id);f.classList.add('ok');f.textContent='Richtig! Gut gemacht.';$('nextArea').classList.remove('hidden');safeText('nextText',currentStation.success||'Suche den nächsten QR-Code.')}else{f.classList.add('err');f.textContent='Das stimmt noch nicht. Versuche es noch einmal.'}};
+$('nextBtn').onclick=()=>{showWelcome();location.hash='';window.scrollTo({top:0,behavior:'smooth'})};$('backBtn').onclick=()=>{showWelcome();location.hash=''};
+$('manualBtn').onclick=()=>$('manualWrap').classList.toggle('hidden');$('openManual').onclick=()=>{try{const u=new URL($('manualUrl').value.trim());location.href=u.href}catch(e){alert('Bitte einen gültigen Stationslink eingeben.')}};
+$('scanBtn').onclick=async()=>{if(!window.Html5Qrcode){alert('Der Scanner konnte nicht geladen werden. Verwende die Kamera-App des iPhones und tippe auf den Link im QR-Code.');return} $('scannerWrap').classList.remove('hidden');if(scanner)return;try{scanner=new Html5Qrcode('reader');await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:230,height:230}},async text=>{try{await scanner.stop()}catch(e){}scanner=null;$('scannerWrap').classList.add('hidden');try{const u=new URL(text);if(u.origin===location.origin){location.href=u.href}else{alert('Dieser QR-Code führt auf eine andere Webseite: '+text)}}catch(e){alert('Das ist kein gültiger Stationslink.')}})}catch(e){scanner=null;alert('Kamera nicht verfügbar. Bitte erlaube Safari den Kamerazugriff oder scanne mit der normalen iPhone-Kamera.')}}
+$('stopScan').onclick=async()=>{if(scanner){try{await scanner.stop()}catch(e){}scanner=null}$('scannerWrap').classList.add('hidden')};
+$('addStation').onclick=()=>{const title=$('titleInput').value.trim(),clue=$('clueInput').value.trim();if(!title||!clue){$('adminMsg').textContent='Bitte Stationsname und Hinweis ausfüllen.';return}const s={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),n:stations.length+1,title,clue,answer:$('answerInputAdmin').value.trim(),success:$('successInput').value.trim(),total:stations.length+1};stations.push(s);stations.forEach((x,i)=>{x.n=i+1;x.total=stations.length});save();$('titleInput').value='';$('clueInput').value='';$('answerInputAdmin').value='';$('successInput').value='';$('adminMsg').textContent='Station hinzugefügt.';renderAdmin()};
+$('demoBtn').onclick=()=>{if(stations.length&&!confirm('Beispielstationen zusätzlich hinzufügen?'))return;const examples=[{title:'Station 1 – Der Start',clue:'Willkommen! Finde den nächsten QR-Code dort, wo man Wasser holt.',answer:'',success:'Gehe zum Brunnen.'},{title:'Station 2 – Das Rätsel',clue:'Ich habe Zeiger, aber keine Finger. Ich zeige dir die Zeit. Was bin ich?',answer:'uhr',success:'Gut gemacht! Suche bei einer Bank.'},{title:'Station 3 – Das Finale',clue:'Letzte Aufgabe: Nenne die Farbe des Grases.',answer:'grün',success:'Du hast die Schnitzeljagd geschafft!'}];examples.forEach((x,i)=>stations.push({...x,id:Date.now().toString(36)+i+Math.random().toString(36).slice(2,5)}));stations.forEach((x,i)=>{x.n=i+1;x.total=stations.length});save();renderAdmin()};
+$('clearStations').onclick=()=>{if(confirm('Wirklich alle Stationen löschen?')){stations=[];save();renderAdmin()}};
+function renderAdmin(){const list=$('stationList'),grid=$('qrGrid');list.innerHTML='';grid.innerHTML='';if(!stations.length)list.innerHTML='<p class="muted">Noch keine Stationen erstellt.</p>';stations.forEach((s,i)=>{const row=document.createElement('div');row.className='stationrow';const title=document.createElement('div');title.className='qrtitle';title.textContent=(i+1)+'. '+s.title;const clue=document.createElement('p');clue.className='muted';clue.textContent=s.clue;const actions=document.createElement('div');actions.className='actions';const edit=document.createElement('button');edit.className='secondary';edit.textContent='Bearbeiten';edit.onclick=()=>{ $('titleInput').value=s.title;$('clueInput').value=s.clue;$('answerInputAdmin').value=s.answer||'';$('successInput').value=s.success||'';stations=stations.filter(x=>x.id!==s.id);stations.forEach((x,j)=>{x.n=j+1;x.total=stations.length});save();renderAdmin();window.scrollTo({top:0,behavior:'smooth'})};const del=document.createElement('button');del.className='danger';del.textContent='Löschen';del.onclick=()=>{stations=stations.filter(x=>x.id!==s.id);stations.forEach((x,j)=>{x.n=j+1;x.total=stations.length});save();renderAdmin()};actions.append(edit,del);row.append(title,clue,actions);list.append(row);
+const qr=document.createElement('div');qr.className='qritem';const qt=document.createElement('div');qt.className='qrtitle';qt.textContent=(i+1)+'. '+s.title;const canvas=document.createElement('div');canvas.style.display='flex';canvas.style.justifyContent='center';canvas.style.margin='10px 0';const url=stationUrl({...s,n:i+1,total:stations.length});if(window.QRCode&&base()){new QRCode(canvas,{text:url,width:190,height:190,correctLevel:QRCode.CorrectLevel.M})}else{canvas.textContent=base()?'QR-Bibliothek nicht geladen':'Gib oben die öffentliche HTTPS-URL ein.';canvas.className='muted'}const link=document.createElement('div');link.className='small muted';link.textContent=url;const open=document.createElement('button');open.className='secondary';open.textContent='Testen';open.style.marginTop='8px';open.onclick=()=>window.open(url,'_blank');qr.append(qt,canvas,link,open);grid.append(qr)});}
+$('printBtn').onclick=()=>{if(!base()){alert('Bitte zuerst die öffentliche URL eintragen.');return}window.print()};
+$('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(stations,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='schnitzeljagd-stationen.json';a.click();URL.revokeObjectURL(a.href)};
+$('importBtn').onclick=()=>$('importFile').click();$('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!Array.isArray(data))throw 0;stations=data;stations.forEach((s,i)=>{s.id=s.id||Date.now().toString(36)+i;s.n=i+1;s.total=stations.length});save();renderAdmin();alert('Import erfolgreich.')}catch(e){alert('Datei konnte nicht importiert werden.')}e.target.value=''};
+if(location.protocol==='http:'||location.protocol==='https:')$('baseUrl').value=location.href.split('#')[0];
+loadHash();renderAdmin();
+})();
+</script>
+<style>
+@media print{header,.tabs,#playView,#adminView>.card:first-child,#stationList,.actions,footer,.muted.small{display:none!important}body{background:white}main{max-width:none;margin:0;padding:0}#adminView{display:block!important}#adminView>.card{border:0;box-shadow:none;padding:0}#qrGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.qritem{break-inside:avoid;border:1px solid #aaa}.qritem .small{display:none!important}.qritem canvas{display:block!important}}
+</style>
+</body></html>
